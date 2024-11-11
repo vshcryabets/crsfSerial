@@ -1,43 +1,32 @@
 #include "CrsfSerial.h"
+#include <cstring>
 
-// static void hexdump(void *p, size_t len)
-// {
-//     char *data = (char *)p;
-//     while (len > 0)
-//     {
-//         uint8_t linepos = 0;
-//         char* linestart = data;
-//         // Binary part
-//         while (len > 0 && linepos < 16)
-//         {
-//             if (*data < 0x0f)
-//             Serial.write('0');
-//             Serial.print(*data, HEX);
-//             Serial.write(' ');
-//             ++data;
-//             ++linepos;
-//             --len;
-//         }
+#ifdef USE_PICO_SDK
+    #include "pico.h"
+    #include "pico/time.h"
+#endif
 
-//         // Spacer to align last line
-//         for (uint8_t i = linepos; i < 16; ++i)
-//             Serial.print("   ");
-
-//         // ASCII part
-//         for (uint8_t i = 0; i < linepos; ++i)
-//             Serial.write((linestart[i] < ' ') ? '.' : linestart[i]);
-//         Serial.println();
-//     }
-// }
-
+#ifdef USE_ARDUINO
 CrsfSerial::CrsfSerial(HardwareSerial &port, uint32_t baud) :
     _port(port), _crc(0xd5), _baud(baud),
     _lastReceive(0), _lastChannelsPacket(0), _linkIsUp(false),
     _passthroughMode(false)
 {
     // Crsf serial is 420000 baud for V2
-    _port.begin(_baud);
+    setBaudrate(baud);
 }
+#endif
+
+#ifdef USE_PICO_SDK
+CrsfSerial::CrsfSerial(uart_inst_t *port, uint32_t baud) :
+    _port(port), _crc(0xd5), _baud(baud),
+    _lastReceive(0), _lastChannelsPacket(0), _linkIsUp(false),
+    _passthroughMode(false)
+{
+    // Crsf serial is 420000 baud for V2
+    setBaudrate(baud);
+}
+#endif
 
 // Call from main loop to update
 void CrsfSerial::loop()
@@ -261,7 +250,24 @@ void CrsfSerial::setPassthroughMode(bool val, unsigned int baud)
     _passthroughMode = val;
     _port.flush();
     if (baud != 0)
-        _port.begin(baud);
+        setBaudrate(baud);
     else
-        _port.begin(_baud);
+        setBaudrate(_baud);
 }
+
+void CrsfSerial::setBaudrate(uint32_t baud) const {
+#ifdef USE_ARDUINO
+    _port.begin(_baud);
+#elif defined(USE_PICO_SDK)
+    uart_init(_port, baud);
+#endif
+}
+
+inline uint32_t CrsfSerial::millis() const
+ {
+#ifdef USE_ANDROID
+    return millis();
+#elif defined(USE_PICO_SDK)    
+    return to_ms_since_boot(get_absolute_time());
+#endif    
+ }
