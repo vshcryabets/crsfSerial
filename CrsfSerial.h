@@ -45,8 +45,10 @@ public:
     void (*onPacketLinkStatistics)(crsfLinkStatistics_t *ls);
     void (*onPacketGps)(crsf_sensor_gps_t *gpsSensor);
 private:
-    void setBaudrate(uint32_t baud) const;
+    inline void setBaudrate(uint32_t baud) const;
     inline uint32_t millis() const;
+    inline bool available() const;
+    inline char read() const;
 private:
 #ifdef USE_ARDUINO
     HardwareSerial &_port;
@@ -64,7 +66,7 @@ private:
     uint32_t _lastChannelsPacket;
     bool _linkIsUp;
     bool _passthroughMode;
-    int _channels[CRSF_NUM_CHANNELS];
+    int16_t _channels[CRSF_NUM_CHANNELS];
 
     void handleSerialIn();
     void handleByteReceived();

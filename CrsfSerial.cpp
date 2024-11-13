@@ -36,9 +36,9 @@ void CrsfSerial::loop()
 
 void CrsfSerial::handleSerialIn()
 {
-    while (_port.available())
+    while (available())
     {
-        uint8_t b = _port.read();
+        uint8_t b = read();
         _lastReceive = millis();
 
         if (_passthroughMode)
@@ -178,8 +178,11 @@ void CrsfSerial::packetChannelsPacked(const crsf_header_t *p)
     _channels[14] = ch->ch14;
     _channels[15] = ch->ch15;
 
-    for (unsigned int i=0; i<CRSF_NUM_CHANNELS; ++i)
-        _channels[i] = map(_channels[i], CRSF_CHANNEL_VALUE_1000, CRSF_CHANNEL_VALUE_2000, 1000, 2000);
+    for (uint8_t i=0; i<CRSF_NUM_CHANNELS; ++i) {
+        //map(_channels[i], CRSF_CHANNEL_VALUE_1000, CRSF_CHANNEL_VALUE_2000, 1000, 2000);
+        int32_t newValue = ((int32_t)_channels[i] - CRSF_CHANNEL_VALUE_1000) * 1000 / (CRSF_CHANNEL_VALUE_2000 - CRSF_CHANNEL_VALUE_1000) + 1000;
+        _channels[i] = newValue;
+    }
 
     if (!_linkIsUp && onLinkUp)
         onLinkUp();
@@ -214,13 +217,22 @@ void CrsfSerial::packetGps(const crsf_header_t *p)
 }
 
 void CrsfSerial::write(uint8_t b)
-{
+{    
+#ifdef USE_ARDUINO
     _port.write(b);
+#elif defined(USE_PICO_SDK)
+    uart_putc_raw(_port, b);
+#endif
+
 }
 
 void CrsfSerial::write(const uint8_t *buf, size_t len)
 {
+#ifdef USE_ARDUINO
     _port.write(buf, len);
+#elif defined(USE_PICO_SDK)
+    uart_write_blocking(_port, buf, len);
+#endif
 }
 
 void CrsfSerial::queuePacket(uint8_t addr, uint8_t type, const void *payload, uint8_t len)
@@ -248,14 +260,16 @@ void CrsfSerial::queuePacket(uint8_t addr, uint8_t type, const void *payload, ui
 void CrsfSerial::setPassthroughMode(bool val, unsigned int baud)
 {
     _passthroughMode = val;
+#ifdef USE_ARDUINO
     _port.flush();
+#endif    
     if (baud != 0)
         setBaudrate(baud);
     else
         setBaudrate(_baud);
 }
 
-void CrsfSerial::setBaudrate(uint32_t baud) const {
+inline void CrsfSerial::setBaudrate(uint32_t baud) const {
 #ifdef USE_ARDUINO
     _port.begin(_baud);
 #elif defined(USE_PICO_SDK)
@@ -270,4 +284,20 @@ inline uint32_t CrsfSerial::millis() const
 #elif defined(USE_PICO_SDK)    
     return to_ms_since_boot(get_absolute_time());
 #endif    
+ }
+
+ inline bool CrsfSerial::available() const {
+#ifdef USE_ANDROID
+    return _port.available();
+#elif defined(USE_PICO_SDK)    
+    return uart_is_readable(_port);
+#endif 
+ }
+
+ inline char CrsfSerial::read() const {
+#ifdef USE_ANDROID
+    return _port.read();
+#elif defined(USE_PICO_SDK)    
+    return uart_getc(_port);
+#endif 
  }
