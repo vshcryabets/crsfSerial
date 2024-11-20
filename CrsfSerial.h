@@ -1,6 +1,12 @@
 #pragma once
 
-#include <Arduino.h>
+#ifdef USE_ARDUINO
+    #include <Arduino.h>
+#endif
+#ifdef USE_PICO_SDK
+    #include "hardware/uart.h"
+#endif
+#include <stddef.h>
 #include <crc8.h>
 #include "crsf_protocol.h"
 
@@ -12,8 +18,12 @@ public:
     // Packet timeout where buffer is flushed if no data is received in this time
     static const unsigned int CRSF_PACKET_TIMEOUT_MS = 100;
     static const unsigned int CRSF_FAILSAFE_STAGE1_MS = 300;
-
+#ifdef USE_ARDUINO
     CrsfSerial(HardwareSerial &port, uint32_t baud = CRSF_BAUDRATE);
+#endif
+#ifdef USE_PICO_SDK
+    CrsfSerial(uart_inst_t *port, uint32_t baud = CRSF_BAUDRATE);
+#endif
     void loop();
     void write(uint8_t b);
     void write(const uint8_t *buf, size_t len);
@@ -34,9 +44,18 @@ public:
     void (*onShiftyByte)(uint8_t b);
     void (*onPacketLinkStatistics)(crsfLinkStatistics_t *ls);
     void (*onPacketGps)(crsf_sensor_gps_t *gpsSensor);
-
 private:
+    inline void setBaudrate(uint32_t baud) const;
+    inline uint32_t millis() const;
+    inline bool available() const;
+    inline char read() const;
+private:
+#ifdef USE_ARDUINO
     HardwareSerial &_port;
+#endif
+#ifdef USE_PICO_SDK
+    uart_inst_t* _port;
+#endif
     uint8_t _rxBuf[CRSF_MAX_PACKET_LEN+3];
     uint8_t _rxBufPos;
     Crc8 _crc;
@@ -47,7 +66,7 @@ private:
     uint32_t _lastChannelsPacket;
     bool _linkIsUp;
     bool _passthroughMode;
-    int _channels[CRSF_NUM_CHANNELS];
+    int16_t _channels[CRSF_NUM_CHANNELS];
 
     void handleSerialIn();
     void handleByteReceived();
