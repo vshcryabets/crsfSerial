@@ -2,6 +2,7 @@
 #include <cstring>
 
 #ifdef USE_PICO_SDK
+    #include <cstdio>
     #include "pico.h"
     #include "pico/time.h"
 #endif
@@ -12,6 +13,7 @@ CrsfSerial::CrsfSerial(HardwareSerial &port, uint32_t baud) :
     _lastReceive(0), _lastChannelsPacket(0), _linkIsUp(false),
     _passthroughMode(false)
 {
+    init();
     // Crsf serial is 420000 baud for V2
     setBaudrate(baud);
 }
@@ -23,10 +25,15 @@ CrsfSerial::CrsfSerial(uart_inst_t *port, uint32_t baud) :
     _lastReceive(0), _lastChannelsPacket(0), _linkIsUp(false),
     _passthroughMode(false)
 {
+    init();
     // Crsf serial is 420000 baud for V2
     setBaudrate(baud);
 }
 #endif
+
+void CrsfSerial::init() {
+    _rxBufPos = 0;
+}
 
 // Call from main loop to update
 void CrsfSerial::loop()
@@ -57,7 +64,6 @@ void CrsfSerial::handleSerialIn()
             _rxBufPos = 0;
         }
     }
-
     checkPacketTimeout();
     checkLinkDown();
 }

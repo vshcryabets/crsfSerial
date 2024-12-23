@@ -49,6 +49,7 @@ private:
     inline uint32_t millis() const;
     inline bool available() const;
     inline char read() const;
+    void init();
 private:
 #ifdef USE_ARDUINO
     HardwareSerial &_port;
